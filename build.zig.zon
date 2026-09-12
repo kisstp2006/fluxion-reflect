@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: BSL-1.0
+
+.{
+    .name = .fluxion_reflect,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.16.0",
+    .fingerprint = 0x9498e944ffa50d03,
+    .dependencies = .{
+        // A type's id is its name hashed, its fingerprint the schema text
+        // hashed, and `Value.hash` the value hashed as `hashValue` would.
+        .fluxion_hash = .{
+            .url = "git+https://github.com/kisstp2006/fluxion-hash#d7211dc2a0e961a67ffb070f45e6089b8125069c",
+            .hash = "fluxion_hash-0.1.0-Zu520_IkAQCn0T4xz2CCSD724jkXcbzZBb_dFirBrjS2",
+        },
+        // Numbers read from text, and "did you mean" for a name not found.
+        .fluxion_text = .{
+            .url = "git+https://github.com/kisstp2006/fluxion-text#41010ffb170fb13a72cc1751ee6031f8d1eebb6f",
+            .hash = "fluxion_text-0.1.0-cIhfioG2AgAJJ9hB0dOMWhHvk6ConZmD0OTreG41NoLX",
+        },
+        // Values as JSON and CBOR, spelt as it spells the Zig types.
+        .fluxion_json = .{
+            .url = "git+https://github.com/kisstp2006/fluxion-json#1d8cb5bb6184636dc3dd0b07a5b4fbe3af41a8b4",
+            .hash = "fluxion_json-0.1.0-sFlLPe9uBQDchSsbl8_C6tWxkEDIgARGF-SziCP3_P_h",
+        },
+        // Checked against by the tests only: that a fingerprint here is the
+        // one fluxion-data writes in its files.
+        .fluxion_data = .{
+            .url = "git+https://github.com/kisstp2006/fluxion-data#557814e008630aaa8ce0ad16c827dc2d611cd991",
+            .hash = "fluxion_data-0.1.0-kueVImYWAQBpTFeRZoHiJcM-QVba7bvciQsX38RklrNm",
+            .lazy = true,
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "include",
+        "examples",
+        "tests",
+        "README.md",
+        "LICENSE",
+    },
+}
