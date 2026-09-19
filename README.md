@@ -132,6 +132,20 @@ const Player = struct {
 - **Methods are opt-in.** Listing every public function would compile every
   one of them, and every function they reach, into every program that
   reflects the type.
+- **Parameter names are an attribute**, because Zig does not keep them.
+  `attr.Params{ .names = &.{"amount"} }` on a method names its parameters
+  without `self`, and the count is checked: a parameter added later is a
+  compile error until its name is listed too. `Method.paramNames()` reads
+  them back and `Method.takesSelf(owner)` says whether the first parameter is
+  the type itself. A tool that calls methods by name - a console, an
+  inspector, a binding generator - gets both, with `attr.Doc` for the line of
+  help.
+
+  ```zig
+  pub const reflect_methods = .{
+      .heal = .{ attr.Params{ .names = &.{"amount"} }, attr.Doc{ .text = "Adds hit points" } },
+  };
+  ```
 - **`reflect_opaque = true`** stops the description there: size and name, no
   insides. For a type whose insides are nobody's business.
 
@@ -224,6 +238,11 @@ registry.findId(id);                      // by the number a file stored
 try registry.resolve("[]const Player");   // built from its Zig spelling
 registry.suggest("Plyer");                // "Player"
 _ = try registry.addFunction("spawn", spawn);
+_ = try registry.addFunctionWith("scale", scale, .{     // with attributes
+    attr.Params{ .names = &.{ "factor", "value" } },    // every parameter: no self
+    attr.Doc{ .text = "Multiplies a value" },
+});
+registry.functionList();                  // every function added, in order
 ```
 
 `resolve` builds pointers, slices, arrays and optional pointers of any

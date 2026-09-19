@@ -14,7 +14,7 @@ const native_endian = @import("builtin").cpu.arch.endian();
 const hashing = @import("fluxion_hash");
 
 const model = @import("model.zig");
-const declarations = @import("generate/declarations.zig");
+pub const declarations = @import("generate/declarations.zig");
 const defaults = @import("generate/defaults.zig");
 const thunks = @import("generate/thunks.zig");
 

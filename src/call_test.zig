@@ -81,3 +81,45 @@ test "a registered function, and a method that returns an error" {
     try v.call("loadOr", &.{.of(&fallback)}, .of(&plain));
     try testing.expectEqual(@as(u8, 15), plain);
 }
+
+test "a method and a free function say the names of their parameters" {
+    const machine = typeOf(Machine);
+
+    const load = machine.method("load").?;
+    try testing.expect(load.takesSelf(machine));
+    try testing.expectEqual(@as(usize, 1), load.paramNames().?.len);
+    try testing.expectEqualStrings("fail", load.paramNames().?[0]);
+    try testing.expectEqualStrings("Loads the level, or jams", load.attribute(reflect.attr.Doc).?.text);
+
+    // a method listed with no attributes has no names, and a function beside a type no self
+    const player = typeOf(Player);
+    try testing.expect(player.method("heal").?.paramNames() == null);
+    try testing.expect(player.method("heal").?.takesSelf(player));
+    try testing.expect(player.method("describe").?.takesSelf(player));
+    try testing.expect(!player.method("heal").?.takesSelf(machine));
+
+    var registry: reflect.Registry = .init(testing.allocator);
+    defer registry.deinit();
+    const scale = try registry.addFunctionWith("scale", test_types.scale, .{
+        reflect.attr.Params{ .names = &.{ "factor", "value" } },
+        reflect.attr.Doc{ .text = "Multiplies a value" },
+    });
+    try testing.expectEqual(@as(usize, 2), scale.paramNames().?.len);
+    try testing.expectEqualStrings("value", scale.paramNames().?[1]);
+    try testing.expect(!scale.takesSelf(player));
+    _ = try registry.addFunction("triple", triple);
+    try testing.expect(registry.function("triple").?.paramNames() == null);
+
+    // the functions can be listed, in the order they were added
+    const list = registry.functionList();
+    try testing.expectEqual(@as(usize, 2), list.len);
+    try testing.expectEqualStrings("scale", list[0].name.slice());
+    try testing.expectEqualStrings("triple", list[1].name.slice());
+
+    // and the function still calls
+    var factor: f32 = 3;
+    var value: f32 = 4;
+    var out: f32 = 0;
+    try reflect.call(scale, &.{ .of(&factor), .of(&value) }, .of(&out));
+    try testing.expectEqual(@as(f32, 12), out);
+}

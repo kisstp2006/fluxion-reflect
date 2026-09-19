@@ -29,6 +29,26 @@ pub const Label = struct {
     text: []const u8,
 };
 
+/// The names of a function's parameters, in order.
+///
+/// Zig does not keep them, so a function that a tool calls by name - an
+/// inspector, a console, a binding generator - lists them here, on the method
+/// in `reflect_methods` or on a function added to a `Registry`. `self` is not
+/// listed: a method whose first parameter is its own type, or a pointer to it,
+/// has that one implied.
+///
+/// The count is checked, so a parameter added later is a compile error until
+/// its name is here too:
+///
+/// ```zig
+/// pub const reflect_methods = .{
+///     .heal = .{ attr.Params{ .names = &.{"amount"} }, attr.Doc{ .text = "Adds hit points" } },
+/// };
+/// ```
+pub const Params = struct {
+    names: []const []const u8,
+};
+
 /// Kept out of an inspector's view.
 pub const Hidden = struct {};
 

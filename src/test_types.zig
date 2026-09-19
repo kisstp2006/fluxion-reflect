@@ -70,7 +70,10 @@ pub const Machine = struct {
     on_hit: *const fn (i32) i32 = double,
     maybe_hit: ?*const fn (i32) i32 = null,
 
-    pub const reflect_methods = .{ .load, .loadOr };
+    pub const reflect_methods = .{
+        .load = .{ attr.Params{ .names = &.{"fail"} }, attr.Doc{ .text = "Loads the level, or jams" } },
+        .loadOr = .{attr.Params{ .names = &.{"fallback"} }},
+    };
     pub const reflect_fields = .{
         .on_hit = .{attr.ReadOnly{}},
     };
@@ -92,4 +95,8 @@ pub const Machine = struct {
 
 pub fn triple(x: i32) i32 {
     return x * 3;
+}
+
+pub fn scale(factor: f32, value: f32) f32 {
+    return factor * value;
 }

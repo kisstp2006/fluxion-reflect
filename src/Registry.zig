@@ -194,15 +194,35 @@ pub const defineUnion = make.defineUnion;
 /// Keep `function` by name, to be found with `function` and called with
 /// `reflect.call`.
 pub fn addFunction(self: *Registry, name: []const u8, comptime f: anytype) Error!*const Method {
+    return self.addFunctionWith(name, f, .{});
+}
+
+/// The same, with attributes: a tuple of values, as `reflect_methods` takes.
+/// `attr.Params` names the parameters, all of them, since a free function has
+/// no `self`.
+///
+/// ```zig
+/// _ = try registry.addFunction("scale", scale, .{
+///     attr.Params{ .names = &.{ "factor", "value" } },
+///     attr.Doc{ .text = "Multiplies a value" },
+/// });
+/// ```
+pub fn addFunctionWith(self: *Registry, name: []const u8, comptime f: anytype, comptime attributes: anytype) Error!*const Method {
     const F = @TypeOf(f);
     const t = typeOf(F);
+    comptime generate.declarations.checkParams(F, "the function", @typeInfo(F).@"fn".params.len, attributes);
     return self.addMethod(.{
         .name = undefined,
         .type = t,
         .function = @ptrCast(&generate.Storage(f).pointer),
         .invoke = t.info.function.invoke,
-        .attributes = .empty,
+        .attributes = comptime generate.declarations.attributeList(attributes),
     }, name);
+}
+
+/// Every function added, in the order they were added.
+pub fn functionList(self: *const Registry) []const *const Method {
+    return self.functions.values();
 }
 
 pub const FunctionSpec = struct {

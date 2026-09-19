@@ -8,6 +8,7 @@
 const std = @import("std");
 
 const model = @import("../model.zig");
+const attr = @import("../attr.zig");
 const json = @import("../json.zig");
 const generate = @import("../generate.zig");
 const defaults = @import("defaults.zig");
@@ -152,9 +153,9 @@ pub fn methodsOf(comptime T: type) List(Method) {
         var out: [listed.fields.len]Method = undefined;
         for (listed.fields, 0..) |f, i| {
             out[i] = if (listed.is_tuple)
-                methodOf(T, methodName(T, @field(spec, f.name)), .empty)
+                methodOf(T, methodName(T, @field(spec, f.name)), .{})
             else
-                methodOf(T, f.name, listOf(attributes(@field(spec, f.name))));
+                methodOf(T, f.name, @field(spec, f.name));
         }
         const final = out;
         break :blk .of(&final);
@@ -169,7 +170,7 @@ fn methodName(comptime T: type, comptime entry: anytype) [:0]const u8 {
     };
 }
 
-fn methodOf(comptime T: type, comptime name: [:0]const u8, comptime attrs: List(Attribute)) Method {
+fn methodOf(comptime T: type, comptime name: [:0]const u8, comptime source: anytype) Method {
     if (!@hasDecl(T, name)) refuse(T, "reflect_methods names " ++ name ++ ", which it does not declare");
     const function = @field(T, name);
     const F = @TypeOf(function);
@@ -177,11 +178,38 @@ fn methodOf(comptime T: type, comptime name: [:0]const u8, comptime attrs: List(
     const info = @typeInfo(F).@"fn";
     if (info.is_generic) refuse(T, name ++ " is generic, so there is no one function to call");
     if (info.calling_convention == .@"inline") refuse(T, name ++ " is inline, so it has no address to call");
+    checkParams(T, name, info.params.len - @intFromBool(takesSelf(T, info)), source);
     return .{
         .name = .of(name),
         .type = typeOf(F),
         .function = @ptrCast(&thunks.Storage(function).pointer),
         .invoke = if (info.is_var_args) null else &thunks.Invoker(F).invoke,
-        .attributes = attrs,
+        .attributes = attributeList(source),
     };
+}
+
+/// An attribute list from a tuple of values, or an empty one.
+pub fn attributeList(comptime tuple: anytype) List(Attribute) {
+    if (@typeInfo(@TypeOf(tuple)).@"struct".fields.len == 0) return .empty;
+    return listOf(attributes(tuple));
+}
+
+/// Whether a method's first parameter is its own type, or a pointer to it: `self`.
+fn takesSelf(comptime T: type, comptime info: std.builtin.Type.Fn) bool {
+    if (info.params.len == 0) return false;
+    const first = info.params[0].type orelse return false;
+    if (first == T) return true;
+    const p = @typeInfo(first);
+    return p == .pointer and p.pointer.size == .one and p.pointer.child == T;
+}
+
+/// `attr.Params` has to name every parameter there is, no more and no fewer.
+pub fn checkParams(comptime T: type, comptime name: []const u8, comptime expected: usize, comptime source: anytype) void {
+    inline for (source) |entry| {
+        if (@TypeOf(entry) == attr.Params) {
+            if (entry.names.len != expected) {
+                refuse(T, std.fmt.comptimePrint("{s} has {d} parameters to name (self is implied), and attr.Params lists {d}", .{ name, expected, entry.names.len }));
+            }
+        }
+    }
 }

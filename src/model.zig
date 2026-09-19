@@ -7,6 +7,7 @@
 const std = @import("std");
 
 const generate = @import("generate.zig");
+const attr = @import("attr.zig");
 const schema = @import("schema.zig");
 const path = @import("path.zig");
 
@@ -139,6 +140,23 @@ pub const Method = extern struct {
 
     pub fn attribute(self: *const Method, comptime T: type) ?*const T {
         return findAttribute(self.attributes, T);
+    }
+
+    /// Whether the first parameter is `owner` or a pointer to it: a method of
+    /// it rather than a function beside it.
+    pub fn takesSelf(self: *const Method, owner: *const Type) bool {
+        const params = self.type.info.function.params.slice();
+        if (params.len == 0) return false;
+        const first = params[0].type;
+        if (first.same(owner)) return true;
+        return first.kind == .pointer and first.info.pointer.size == .one and first.info.pointer.child.same(owner);
+    }
+
+    /// The names `attr.Params` gave the parameters, without `self`, or null if
+    /// it was not used.
+    pub fn paramNames(self: *const Method) ?[]const []const u8 {
+        const params = self.attribute(attr.Params) orelse return null;
+        return params.names;
     }
 };
 
