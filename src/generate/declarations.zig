@@ -29,6 +29,11 @@ pub fn check(comptime T: type) void {
                 else => false,
             };
             if (!known) refuse(T, "reflect_fields names ." ++ name ++ ", which it does not have");
+            inline for (@field(T.reflect_fields, name)) |entry| {
+                if (@TypeOf(entry) == attr.Setter and !@hasDecl(T, entry.method)) {
+                    refuse(T, "the setter of ." ++ name ++ " is " ++ entry.method ++ ", which it does not declare");
+                }
+            }
         }
     }
 }
@@ -76,16 +81,25 @@ fn attributes(comptime tuple: anytype) []const Attribute {
     return comptime blk: {
         const fields = info.@"struct".fields;
         var out: [fields.len]Attribute = undefined;
-        for (fields, 0..) |f, i| {
+        var n = 0;
+        for (fields) |f| {
+            // `attr.defaults` is made into `attr.Defaults` with the method's
+            // parameters, by `methodAttributes`.
+            if (isDefaults(f.type)) continue;
             const held = if (f.is_comptime)
                 defaults.materialize(f.type, @ptrCast(@alignCast(f.default_value_ptr.?)))
             else
                 defaults.hold(f.type, @field(tuple, f.name));
-            out[i] = .{ .type = held.type, .value = held.value };
+            out[n] = .{ .type = held.type, .value = held.value };
+            n += 1;
         }
-        const final = out;
+        const final = out[0..n].*;
         break :blk &final;
     };
+}
+
+fn isDefaults(comptime T: type) bool {
+    return @typeInfo(T) == .@"struct" and @hasDecl(T, "reflect_defaults_of");
 }
 
 // -------------------------------------------------------------------------
@@ -178,13 +192,14 @@ fn methodOf(comptime T: type, comptime name: [:0]const u8, comptime source: anyt
     const info = @typeInfo(F).@"fn";
     if (info.is_generic) refuse(T, name ++ " is generic, so there is no one function to call");
     if (info.calling_convention == .@"inline") refuse(T, name ++ " is inline, so it has no address to call");
-    checkParams(T, name, info.params.len - @intFromBool(takesSelf(T, info)), source);
+    const own = info.params.len - @intFromBool(takesSelf(T, info));
+    checkParams(T, name, own, source);
     return .{
         .name = .of(name),
         .type = typeOf(F),
         .function = @ptrCast(&thunks.Storage(function).pointer),
         .invoke = if (info.is_var_args) null else &thunks.Invoker(F).invoke,
-        .attributes = attributeList(source),
+        .attributes = methodAttributes(T, name, info, own, source),
     };
 }
 
@@ -192,6 +207,31 @@ fn methodOf(comptime T: type, comptime name: [:0]const u8, comptime source: anyt
 pub fn attributeList(comptime tuple: anytype) List(Attribute) {
     if (@typeInfo(@TypeOf(tuple)).@"struct".fields.len == 0) return .empty;
     return listOf(attributes(tuple));
+}
+
+/// A function's attributes, with what `attr.defaults` wrote made into
+/// `attr.Defaults` of the types of the last parameters. `own` is how many
+/// parameters a caller gives, `self` not among them.
+pub fn methodAttributes(comptime T: type, comptime name: []const u8, comptime info: std.builtin.Type.Fn, comptime own: usize, comptime source: anytype) List(Attribute) {
+    return comptime blk: {
+        var out: []const Attribute = if (@typeInfo(@TypeOf(source)).@"struct".fields.len == 0) &.{} else attributes(source);
+        for (source) |entry| {
+            if (!isDefaults(@TypeOf(entry))) continue;
+            const values = entry.values;
+            const n = @typeInfo(@TypeOf(values)).@"struct".fields.len;
+            if (n > own) refuse(T, std.fmt.comptimePrint("{s} has {d} parameters to give (self is implied), and attr.defaults gives {d}", .{ name, own, n }));
+            var given: [n]attr.Defaults.Default = undefined;
+            for (0..n) |i| {
+                const P = info.params[info.params.len - n + i].type orelse refuse(T, name ++ " has a parameter of no one type to give a default");
+                const held = defaults.hold(P, @as(P, values[i]));
+                given[i] = .{ .type = held.type, .value = held.value };
+            }
+            const final = given;
+            out = out ++ [_]Attribute{attributeOf(attr.Defaults{ .values = &final })};
+        }
+        if (out.len == 0) break :blk .empty;
+        break :blk listOf(out);
+    };
 }
 
 /// Whether a method's first parameter is its own type, or a pointer to it: `self`.

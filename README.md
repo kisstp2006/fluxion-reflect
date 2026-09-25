@@ -9,7 +9,7 @@ platform Fluxion runs on, the browser included. For Zig 0.16.
 | `Value` | A descriptor and an address: read, write, convert, walk into, compare, hash, print and parse a value whose type is known only at run time. |
 | `Registry` | Types by name and by id, types built from their Zig spelling (`[]const Vec2`), types described from C, functions by name. |
 | `json` | Values as JSON and CBOR through [Fluxion JSON](https://github.com/kisstp2006/fluxion-json), spelt exactly as it spells the Zig type. |
-| `attr` | Attributes worth one spelling: `Range`, `Doc`, `Label`, `Hidden`, `ReadOnly`. |
+| `attr` | Attributes worth one spelling: `Range`, `Doc`, `Label`, `Hidden`, `ReadOnly`, `Params`, `Defaults`, `Setter`. |
 | `c` | The C API in [`include/fluxion_reflect.h`](include/fluxion_reflect.h) - a header per part under [`include/fluxion_reflect/`](include/fluxion_reflect) - over the same descriptors. |
 
 Zig's reflection happens at compile time and is gone by the time the program
@@ -146,6 +146,19 @@ const Player = struct {
       .heal = .{ attr.Params{ .names = &.{"amount"} }, attr.Doc{ .text = "Adds hit points" } },
   };
   ```
+- **Default arguments are an attribute too.** `attr.defaults(.{ "", 1.0, false })`
+  gives the last parameters values a call may leave out, as many as there
+  are values; the registry makes each the type of the parameter it is for,
+  and `Method.defaultArgs()` hands them back as `attr.Defaults` - a type and
+  a pointer each. A tool calling the method fills in what it was not given.
+
+  ```zig
+  .play = .{ attr.Params{ .names = &.{ "name", "speed", "from_end" } }, attr.defaults(.{ "", 1.0, false }) },
+  ```
+- **A field can name its setter**: `attr.Setter{ .method = "setName" }` on
+  it says a write to it is a call to that method, listed in
+  `reflect_methods` and taking the new value - for a field whose change has
+  more to do than be stored. A console or a script writes it that way.
 - **`reflect_opaque = true`** stops the description there: size and name, no
   insides. For a type whose insides are nobody's business.
 

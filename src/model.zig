@@ -158,6 +158,13 @@ pub const Method = extern struct {
         const params = self.attribute(attr.Params) orelse return null;
         return params.names;
     }
+
+    /// What `attr.defaults` gave its last parameters, the first defaulted
+    /// one's first: a call may leave that many out.
+    pub fn defaultArgs(self: *const Method) []const attr.Defaults.Default {
+        const given = self.attribute(attr.Defaults) orelse return &.{};
+        return given.values;
+    }
 };
 
 pub const Int = extern struct {

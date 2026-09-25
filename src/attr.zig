@@ -54,3 +54,52 @@ pub const Hidden = struct {};
 
 /// Shown, and not to be changed by hand.
 pub const ReadOnly = struct {};
+
+/// What a method's last parameters are when a call leaves them out: one
+/// value for each of as many of the last parameters as there are values,
+/// each of the parameter's type. Written with `defaults`, which the registry
+/// turns into this:
+///
+/// ```zig
+/// pub const reflect_methods = .{
+///     .play = .{
+///         attr.Params{ .names = &.{ "name", "custom_speed", "from_end" } },
+///         attr.defaults(.{ "", 1.0, false }),
+///     },
+/// };
+/// ```
+pub const Defaults = struct {
+    /// The first defaulted parameter's first.
+    values: []const Default,
+
+    pub const Default = struct {
+        type: *const model.Type,
+        value: *const anyopaque,
+    };
+};
+
+/// `Defaults` as `reflect_methods` writes them: the values, which the
+/// registry makes the types of the parameters they are for.
+pub fn defaults(comptime values: anytype) DefaultsOf(@TypeOf(values)) {
+    return .{ .values = values };
+}
+
+/// What `defaults` makes, before the registry has seen the parameters.
+pub fn DefaultsOf(comptime Values: type) type {
+    return struct {
+        values: Values,
+
+        pub const reflect_defaults_of = Values;
+    };
+}
+
+/// A field whose writes go through a method of its type's - named here, and
+/// listed in `reflect_methods` - that takes the new value: a change with more
+/// to do than be stored, such as an animation's name that starts it again.
+/// A tool that writes the field for a person - a console, a script - calls
+/// the method instead.
+pub const Setter = struct {
+    method: []const u8,
+};
+
+const model = @import("model.zig");

@@ -123,3 +123,47 @@ test "a method and a free function say the names of their parameters" {
     try reflect.call(scale, &.{ .of(&factor), .of(&value) }, .of(&out));
     try testing.expectEqual(@as(f32, 12), out);
 }
+
+/// A player of clips: its last parameters have defaults, and its name is
+/// written through a method.
+const Deck = struct {
+    name: [16]u8 = @splat(0),
+    speed: f32 = 1,
+    restarted: u32 = 0,
+
+    pub const reflect_methods = .{
+        .play = .{ reflect.attr.Params{ .names = &.{ "name", "speed", "from_end" } }, reflect.attr.defaults(.{ "", 1.0, false }) },
+        .setName = .{reflect.attr.Params{ .names = &.{"name"} }},
+    };
+    pub const reflect_fields = .{ .name = .{reflect.attr.Setter{ .method = "setName" }} };
+
+    pub fn play(self: *Deck, name: []const u8, speed: f32, from_end: bool) void {
+        if (name.len > 0) self.setName(name);
+        self.speed = if (from_end) -speed else speed;
+    }
+
+    pub fn setName(self: *Deck, name: []const u8) void {
+        self.name = @splat(0);
+        @memcpy(self.name[0..@min(name.len, 16)], name[0..@min(name.len, 16)]);
+        self.restarted += 1;
+    }
+};
+
+test "a method's defaults are its last parameters', each of the parameter's type, and a field names its setter" {
+    const t = typeOf(Deck);
+    const play = t.method("play").?;
+    const given = play.defaultArgs();
+    try testing.expectEqual(@as(usize, 3), given.len);
+    try testing.expect(given[0].type.is([]const u8));
+    try testing.expectEqualStrings("", @as(*const []const u8, @ptrCast(@alignCast(given[0].value))).*);
+    try testing.expect(given[1].type.is(f32));
+    try testing.expectEqual(@as(f32, 1.0), @as(*const f32, @ptrCast(@alignCast(given[1].value))).*);
+    try testing.expect(!@as(*const bool, @ptrCast(@alignCast(given[2].value))).*);
+    // What was written with `attr.defaults` is not an attribute of its own.
+    try testing.expectEqualStrings("from_end", play.paramNames().?[2]);
+    try testing.expectEqual(@as(usize, 2), play.attributes.len);
+    try testing.expectEqual(@as(usize, 0), t.method("setName").?.defaultArgs().len);
+
+    const setter = t.field("name").?.attribute(reflect.attr.Setter).?;
+    try testing.expectEqualStrings("setName", setter.method);
+}

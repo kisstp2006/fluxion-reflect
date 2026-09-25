@@ -210,13 +210,14 @@ pub fn addFunction(self: *Registry, name: []const u8, comptime f: anytype) Error
 pub fn addFunctionWith(self: *Registry, name: []const u8, comptime f: anytype, comptime attributes: anytype) Error!*const Method {
     const F = @TypeOf(f);
     const t = typeOf(F);
-    comptime generate.declarations.checkParams(F, "the function", @typeInfo(F).@"fn".params.len, attributes);
+    const info = @typeInfo(F).@"fn";
+    comptime generate.declarations.checkParams(F, "the function", info.params.len, attributes);
     return self.addMethod(.{
         .name = undefined,
         .type = t,
         .function = @ptrCast(&generate.Storage(f).pointer),
         .invoke = t.info.function.invoke,
-        .attributes = comptime generate.declarations.attributeList(attributes),
+        .attributes = comptime generate.declarations.methodAttributes(F, "the function", info, info.params.len, attributes),
     }, name);
 }
 
