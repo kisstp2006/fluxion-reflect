@@ -54,6 +54,7 @@ fn make(comptime T: type) Type {
         .bit_size = if (hasNoSize(T)) 0 else @bitSizeOf(T),
         .kind = kindOf(T),
         .info = infoOf(T),
+        .drop = declarations.dropOf(T),
     };
 }
 

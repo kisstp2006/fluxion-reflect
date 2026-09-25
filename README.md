@@ -161,6 +161,11 @@ const Player = struct {
   more to do than be stored. A console or a script writes it that way.
 - **`reflect_opaque = true`** stops the description there: size and name, no
   insides. For a type whose insides are nobody's business.
+- **`reflect_drop = release`**, a `fn (*T, Allocator) void`, lets go of what
+  a value owns besides its own bytes - a buffer, a document - when
+  `Value.destroy` frees it. `Type.drop` is it, called through the C calling
+  convention with a pointer to the allocator. A script engine that frees the
+  values it was handed does it through this.
 
 ## Values
 
@@ -198,7 +203,7 @@ What a `Value` does with each kind, briefly:
 
 `Value.create(gpa, t)` makes a new one on the heap holding the type's default:
 its declared field defaults, then zero, false, null, empty, an enum's first
-member.
+member. `destroy` frees it, after the type's `reflect_drop`.
 
 `eql` and `hash` compare what the value holds - field by field, slices by
 their items, single pointers by what they point at, floats by their bits -

@@ -83,6 +83,10 @@ typedef struct fxr_member_list {
  * pointing at the i-th argument, and writes the result to `result`. */
 typedef void (*fxr_invoke)(const void *function, void *const *args, void *result);
 
+/* Lets go of what a value owns besides its own bytes, before they are freed;
+ * `gpa` points at the Zig allocator they are freed with. */
+typedef void (*fxr_drop)(void *value, const void *gpa);
+
 typedef struct fxr_method {
     fxr_str name;
     const fxr_type *type; /* an FXR_FUNCTION */
@@ -261,6 +265,7 @@ struct fxr_type {
     uint32_t bit_size;
     uint8_t kind; /* enum fxr_kind */
     fxr_info info;
+    fxr_drop drop; /* NULL for most */
 };
 
 const char *fxr_kind_name(uint8_t kind);

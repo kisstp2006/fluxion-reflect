@@ -54,7 +54,7 @@ size_t fxr_test_layouts(size_t *out, size_t capacity) {
     MEASURE(fxr_info);
     MEASURE(fxr_type); AT(fxr_type, name); AT(fxr_type, id); AT(fxr_type, size); AT(fxr_type, default_value);
     AT(fxr_type, attributes); AT(fxr_type, methods); AT(fxr_type, alignment); AT(fxr_type, bit_size); AT(fxr_type, kind);
-    AT(fxr_type, info);
+    AT(fxr_type, info); AT(fxr_type, drop);
     MEASURE(fxr_value); AT(fxr_value, type); AT(fxr_value, ptr); AT(fxr_value, bit_offset); AT(fxr_value, is_bit_field);
     AT(fxr_value, is_const);
     MEASURE(fxr_bytes); AT(fxr_bytes, ptr); AT(fxr_bytes, len);

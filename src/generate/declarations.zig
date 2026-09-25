@@ -38,6 +38,22 @@ pub fn check(comptime T: type) void {
     }
 }
 
+/// The type's `reflect_drop`, called with the allocator the value is freed
+/// with.
+pub fn dropOf(comptime T: type) ?*const model.Drop {
+    if (!hasDecl(T, "reflect_drop")) return null;
+    const release = T.reflect_drop;
+    if (@TypeOf(release) != fn (*T, std.mem.Allocator) void) {
+        refuse(T, "reflect_drop is a fn (*" ++ @typeName(T) ++ ", std.mem.Allocator) void");
+    }
+    return &struct {
+        fn call(value: *anyopaque, gpa: *const anyopaque) callconv(.c) void {
+            const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(gpa));
+            release(@ptrCast(@alignCast(value)), allocator.*);
+        }
+    }.call;
+}
+
 // -------------------------------------------------------------------------
 // Attributes
 // -------------------------------------------------------------------------

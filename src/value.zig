@@ -100,7 +100,11 @@ pub const Value = extern struct {
         return .{ .type = t, .ptr = memory };
     }
 
+    /// Free a value made on the heap - by `create`, or by whoever made it
+    /// with the type's size and alignment - after its type's `reflect_drop`
+    /// lets go of what it holds.
     pub fn destroy(self: Value, gpa: Allocator) void {
+        if (self.type.drop) |drop| drop(self.ptr, &gpa);
         const memory: [*]u8 = @ptrCast(self.ptr);
         gpa.rawFree(memory[0..@max(self.type.size, 1)], .fromByteUnits(self.type.alignment), @returnAddress());
     }

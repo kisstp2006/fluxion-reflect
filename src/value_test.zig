@@ -15,6 +15,30 @@ const Shape = test_types.Shape;
 const Node = test_types.Node;
 const Signed = test_types.Signed;
 
+test "a value that owns memory lets go of it as it is destroyed" {
+    const Holder = struct {
+        words: []u8 = &.{},
+
+        pub const reflect_drop = release;
+
+        fn release(self: *@This(), gpa: std.mem.Allocator) void {
+            gpa.free(self.words);
+            self.words = &.{};
+        }
+    };
+    try testing.expect(typeOf(Holder).drop != null);
+    try testing.expect(typeOf(Player).drop == null);
+
+    const held = try testing.allocator.create(Holder);
+    held.* = .{ .words = try testing.allocator.dupe(u8, "kept until the end") };
+    // The testing allocator says so if the words are left behind.
+    Value.of(held).destroy(testing.allocator);
+
+    // One made from the default holds nothing, and lets go of nothing.
+    const fresh = try Value.create(testing.allocator, typeOf(Holder));
+    fresh.destroy(testing.allocator);
+}
+
 test "a new value starts from the declared defaults" {
     const v = try Value.create(testing.allocator, typeOf(Player));
     defer v.destroy(testing.allocator);

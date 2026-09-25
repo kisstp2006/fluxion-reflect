@@ -127,6 +127,11 @@ pub const Member = extern struct {
 /// pointing at the i-th argument, and writes what it returns to `result`.
 pub const Invoke = fn (function: *const anyopaque, args: [*]const *anyopaque, result: ?*anyopaque) callconv(.c) void;
 
+/// Lets go of what a value holds besides its own bytes - a buffer it owns -
+/// with the allocator `gpa` points at, before `Value.destroy` frees the
+/// bytes. See `reflect_drop`.
+pub const Drop = fn (value: *anyopaque, gpa: *const anyopaque) callconv(.c) void;
+
 /// A function a type declares and lists in `reflect_methods`, or one added to
 /// a `Registry`.
 pub const Method = extern struct {
@@ -342,6 +347,9 @@ pub const Type = extern struct {
     bit_size: u32,
     kind: Kind,
     info: Info,
+    /// What `Value.destroy` does before it frees a value: the type's
+    /// `reflect_drop`, or nothing.
+    drop: ?*const Drop = null,
 
     /// Whether this describes `T`. See `same`.
     pub fn is(self: *const Type, comptime T: type) bool {
