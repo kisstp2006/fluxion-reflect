@@ -122,10 +122,17 @@ fn setWide(self: Value, number: i129) Error!void {
 
 /// Write a number into a float, or into an integer when it is whole.
 pub fn setFloat(self: Value, number: anytype) Error!void {
-    return setWideFloat(self, number);
+    const Float = switch (@TypeOf(number)) {
+        comptime_float, comptime_int => f128,
+        else => |Given| Given,
+    };
+    return setFloatOf(Float, self, number);
 }
 
-fn setWideFloat(self: Value, number: f128) Error!void {
+/// In its own width as far as the field: an `f64` written into an `f32`
+/// is one conversion the processor makes, not two through `f128` that it
+/// has to work out in code.
+fn setFloatOf(comptime Float: type, self: Value, number: Float) Error!void {
     try writable(self);
     switch (self.type.kind) {
         .float => self.storeRaw(bits.fromFloat(number, self.type.info.float.bits)),
@@ -201,7 +208,7 @@ pub fn convertFrom(self: Value, source: Value) Error!void {
     if (self.type.same(source.type)) return copyFrom(self, source);
     switch (source.type.kind) {
         .int, .bool => return setWide(self, source.wideInt() orelse return error.OutOfRange),
-        .float => return setWideFloat(self, source.toFloat(f128).?),
+        .float => return setFloatOf(f128, self, source.toFloat(f128).?),
         .@"enum" => {
             if (self.type.kind == .@"enum") return setString(self, source.toString() orelse return error.NoSuchMember);
             return setWide(self, source.wideInt().?);

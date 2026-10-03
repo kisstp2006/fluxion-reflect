@@ -72,6 +72,12 @@ test "fields are read and written by name" {
 
     try testing.expectError(error.OutOfRange, (try v.field("level")).setInt(70000));
     try testing.expectError(error.OutOfRange, (try v.field("level")).setFloat(1.5));
+    // A float of a width of its own, as a script hands one over.
+    try (try v.path("stats.health")).setFloat(@as(f64, 2.25));
+    try testing.expectEqual(@as(f32, 2.25), player.stats.health);
+    try (try v.field("level")).setFloat(@as(f64, 9));
+    try testing.expectEqual(@as(u16, 9), player.level);
+    try testing.expectError(error.OutOfRange, (try v.field("level")).setFloat(@as(f64, 0.5)));
     try testing.expectError(error.NoSuchMember, (try v.field("team")).setString("purple"));
     try testing.expectError(error.NoSuchField, v.field("levle"));
     try testing.expectError(error.IndexOutOfBounds, v.path("inventory[3]"));
